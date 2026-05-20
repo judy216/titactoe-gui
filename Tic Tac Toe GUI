@@ -1,0 +1,198 @@
+import tkinter as tk
+from tkinter import messagebox
+import copy
+
+# dictionary to store the board
+board = {1:"", 2:"", 3:"", 4:"", 5:"", 6:"", 7:"", 8:"", 9:""}
+
+player_letter = "X"
+comp_letter = "O"
+vs_computer = True
+my_turn = True
+buttons = {}
+
+def check_win(b, letter):
+    wins = [(1,2,3),(4,5,6),(7,8,9),(1,4,7),(2,5,8),(3,6,9),(1,5,9),(3,5,7)]
+    for combo in wins:
+        if b[combo[0]] == b[combo[1]] == b[combo[2]] == letter:
+            return True
+    return False
+
+def check_draw(b):
+    for val in b.values():
+        if val == "":
+            return False
+    return True
+
+def is_available(pos):
+    return board[pos] == ""
+
+def computer_move():
+    available = []
+    for pos in board:
+        if is_available(pos):
+            available.append(pos)
+
+    # try to win first
+    for pos in available:
+        temp = copy.copy(board)
+        temp[pos] = comp_letter
+        if check_win(temp, comp_letter):
+            return pos
+
+    # block the player
+    for pos in available:
+        temp = copy.copy(board)
+        temp[pos] = player_letter
+        if check_win(temp, player_letter):
+            return pos
+
+    # take center
+    if is_available(5):
+        return 5
+
+    # take a corner
+    for pos in [1, 3, 7, 9]:
+        if is_available(pos):
+            return pos
+
+    return available[0]
+
+def click(pos):
+    global my_turn
+
+    if not is_available(pos):
+        return
+
+    if vs_computer:
+        letter = player_letter
+    else:
+        letter = player_letter if my_turn else comp_letter
+
+    board[pos] = letter
+    color = "blue" if letter == "X" else "red"
+    buttons[pos].config(text=letter, fg=color, state="disabled", disabledforeground=color)
+
+    if check_win(board, letter):
+        if vs_computer:
+            msg = "You win!" if letter == player_letter else "Computer wins!"
+        else:
+            msg = "Player 1 wins!" if my_turn else "Player 2 wins!"
+        status.config(text=msg)
+        if messagebox.askyesno("Game Over", msg + "\nPlay again?"):
+            reset()
+        else:
+            root.destroy()
+        return
+
+    if check_draw(board):
+        status.config(text="It's a draw!")
+        if messagebox.askyesno("Game Over", "It's a draw!\nPlay again?"):
+            reset()
+        else:
+            root.destroy()
+        return
+
+    my_turn = not my_turn
+
+    if vs_computer:
+        status.config(text="Computer thinking...")
+        root.after(400, do_computer_turn)
+    else:
+        status.config(text="Player 1's turn" if my_turn else "Player 2's turn")
+
+def do_computer_turn():
+    global my_turn
+
+    pos = computer_move()
+    board[pos] = comp_letter
+    buttons[pos].config(text=comp_letter, fg="red", state="disabled", disabledforeground="red")
+
+    if check_win(board, comp_letter):
+        status.config(text="Computer wins!")
+        if messagebox.askyesno("Game Over", "Computer wins!\nPlay again?"):
+            reset()
+        else:
+            root.destroy()
+        return
+
+    if check_draw(board):
+        status.config(text="It's a draw!")
+        if messagebox.askyesno("Game Over", "It's a draw!\nPlay again?"):
+            reset()
+        else:
+            root.destroy()
+        return
+
+    my_turn = True
+    status.config(text="Your turn")
+
+def reset():
+    global board, my_turn
+    board = {1:"", 2:"", 3:"", 4:"", 5:"", 6:"", 7:"", 8:"", 9:""}
+    for pos in buttons:
+        buttons[pos].config(text="", state="normal", bg="#f0f0f0")
+    my_turn = first_var.get() == "1"
+    if vs_computer:
+        status.config(text="Your turn" if my_turn else "Computer thinking...")
+        if not my_turn:
+            root.after(400, do_computer_turn)
+    else:
+        status.config(text="Player 1's turn" if my_turn else "Player 2's turn")
+
+def start():
+    global vs_computer, player_letter, comp_letter, my_turn
+
+    vs_computer = mode_var.get() == "computer"
+    player_letter = letter_var.get()
+    comp_letter = "O" if player_letter == "X" else "X"
+    my_turn = first_var.get() == "1"
+
+    setup.pack_forget()
+    game.pack(padx=10, pady=10)
+    reset()
+
+# main window
+root = tk.Tk()
+root.title("Tic-Tac-Toe")
+root.resizable(False, False)
+
+# setup screen
+setup = tk.Frame(root, padx=20, pady=20)
+setup.pack()
+
+tk.Label(setup, text="Tic-Tac-Toe", font=("Arial", 20, "bold")).grid(row=0, columnspan=2, pady=10)
+
+tk.Label(setup, text="Play against:").grid(row=1, column=0, sticky="w")
+mode_var = tk.StringVar(value="computer")
+tk.Radiobutton(setup, text="Computer", variable=mode_var, value="computer").grid(row=2, column=0, sticky="w")
+tk.Radiobutton(setup, text="Another Player", variable=mode_var, value="player").grid(row=2, column=1, sticky="w")
+
+tk.Label(setup, text="Choose letter:").grid(row=3, column=0, sticky="w", pady=(10,0))
+letter_var = tk.StringVar(value="X")
+tk.Radiobutton(setup, text="X", variable=letter_var, value="X").grid(row=4, column=0, sticky="w")
+tk.Radiobutton(setup, text="O", variable=letter_var, value="O").grid(row=4, column=1, sticky="w")
+
+tk.Label(setup, text="Who goes first?").grid(row=5, column=0, sticky="w", pady=(10,0))
+first_var = tk.StringVar(value="1")
+tk.Radiobutton(setup, text="You / Player 1", variable=first_var, value="1").grid(row=6, column=0, sticky="w")
+tk.Radiobutton(setup, text="Computer / Player 2", variable=first_var, value="2").grid(row=6, column=1, sticky="w")
+
+tk.Button(setup, text="Start Game", bg="green", fg="white", font=("Arial", 12, "bold"),
+          padx=10, pady=5, command=start).grid(row=7, columnspan=2, pady=15)
+
+# game screen
+game = tk.Frame(root)
+
+status = tk.Label(game, text="", font=("Arial", 12))
+status.grid(row=0, columnspan=3, pady=5)
+
+for i in range(1, 10):
+    r = (i-1) // 3
+    c = (i-1) % 3
+    b = tk.Button(game, text="", font=("Arial", 26, "bold"), width=4, height=2,
+                  bg="#f0f0f0", command=lambda p=i: click(p))
+    b.grid(row=r+1, column=c, padx=4, pady=4)
+    buttons[i] = b
+
+root.mainloop()
